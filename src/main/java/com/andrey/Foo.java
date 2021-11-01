@@ -1,50 +1,68 @@
 package main.java.com.andrey;
-import java.sql.SQLOutput;
 import java.util.concurrent.*;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
 
-public  class Foo  {
-    public static  boolean flag = false;
-    public static  int n = 0;
-     static Thread A = new Thread(()->{
-         first();
-        flag = true;
-     });
-   static Thread B = new Thread(()->{
-       try {
-           Thread.sleep(1000);
-       } catch (InterruptedException e) {
-           e.printStackTrace();
-       }
-       if (flag==true ){
-           second();
-       n =1;}
-   });
-   static Thread C = new Thread(()->{
-       try {
-           Thread.sleep(2000);
-       } catch (InterruptedException e) {
-           e.printStackTrace();
-       }
-       if(flag == true && n ==1)
-           third();
-   });
-  public  static void first(){
-     System.out.println("first");
+public  class Foo {
+    Semaphore sem2;
+    Semaphore sem3;
+    Foo(){
+        sem2 = new Semaphore(0);
+        sem3 = new Semaphore(0);
     }
-    public static void second(){
-      System.out.println("second");
+
+     public void first(Runnable r) {
+
+        System.out.println("first");
+        sem2.release();
     }
-    public static void third(){
+    public void second(Runnable r){
+        try {
+            sem2.acquire();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        System.out.println("second");
+        sem3.release();
+          }
+
+    public  void third(Runnable r){
+        try {
+            sem3.acquire();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
         System.out.println("third");
     }
+
+
     public static void main(String[] args) throws ExecutionException, InterruptedException {
         Foo foo = new Foo();
-       C.start();
-       B.start();
-       A.start();
+        CompletableFuture<Void> printFirst = CompletableFuture.runAsync(new Runnable() {
+            @Override
+            public void run() {
+                foo.first(this::run);
+            }
+        });
+        CompletableFuture<Void> printSecond = CompletableFuture
+                .runAsync(new Runnable() {
+                    @Override
+                    public void run() {
+
+                        foo.second(this::run);
+                    }
+                });
+        CompletableFuture<Void> printThird = CompletableFuture
+                .runAsync(new Runnable() {
+                    @Override
+                    public void run() {
+                        foo.third(this::run);
+                    }
+                });
+
+       printFirst.get();
+       printSecond.get();
+       printThird.get();
+
     }
 }
-
 
